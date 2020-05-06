@@ -1,0 +1,62 @@
+#!/usr/bin/bash
+echo "此脚本用于安装nginx1.16版本"
+sleep 3
+cd /etc/yum.repos.d/
+yum -y install wget
+ping -c1 -w1 www.baidu.com
+if [ $? -eq 0 ];then
+     echo "网络正常"
+else 
+     echo "网络异常"
+exit 2
+fi
+systemctl status firewalld
+if [ $? -eq 0 ];then
+         echo "正在关闭防火墙"
+                systemctl stop firewalld && systemctl disable firewalld
+else
+          systemctl disable firewalld
+          echo "防火墙已关闭"
+fi
+a=`/usr/sbin/sestatus |grep Current |awk '{print $3}'`
+if [  "$a" = "enforcing" ];then
+           echo "正在关闭selinux" 
+                  setenforce 0 && sed -i 's/SELINUX=enforcing/SELINUX=disabled/' /etc/selinux/config
+else
+                 sed -i 's/SELINUX=enforcing/SELINUX=disabled/' /etc/selinux/config
+          echo "selinux已关闭"
+fi
+          echo "配置阿里YUM源"
+cat > /etc/yum.repos.d/nginx.repo <<-EOF
+[nginx-stable]
+name=nginx stable repo
+baseurl=http://nginx.org/packages/centos/$releasever/$basearch/
+gpgcheck=1
+enabled=1
+gpgkey=https://nginx.org/keys/nginx_signing.key
+
+[nginx-mainline]
+name=nginx mainline repo
+baseurl=http://nginx.org/packages/mainline/centos/$releasever/$basearch/
+gpgcheck=1
+enabled=0
+gpgkey=https://nginx.org/keys/nginx_signing.key
+EOF
+
+yum makecache fast
+rpm -q nginx 
+if [ $? -eq 0 ];then 
+           echo "nginx已安装"
+          systemctl enable nginx && systemctl start nginx          
+else   
+           echo "正在安装nginx"
+           yum -y  install nginx &>/dev/null
+           systemctl enable nginx && systemctl start nginx
+fi
+b=`nginx -v`
+          echo "nginx 已安装成功" 
+          echo "防火墙已关闭"
+          echo "SElinux已关闭"
+          echo "nginx已开启版本为$b"
+
+           
